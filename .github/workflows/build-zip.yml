@@ -1,0 +1,28 @@
+name: Build ZIP
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-zip:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create zip file (exclude README.md)
+        run: |
+          mkdir -p dist
+          zip -r dist/pomodoro-timer.zip . \
+            -x "README.md" \
+               ".git/*" \
+               ".github/*"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pomodoro-timer-zip
+          path: dist/pomodoro-timer.zip
