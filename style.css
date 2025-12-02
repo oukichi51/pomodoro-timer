@@ -148,6 +148,28 @@ button {
   color: #10b981;
 }
 
+.stats-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 14px;
+  text-align: center; /* ← これで中身ぜんぶ中央寄せ */
+}
+
+.stats-section h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+.stats-row {
+  margin-top: 4px;
+}
+
+/* 数値側だけちょっと強調したい場合 */
+.stats-row span:last-child {
+  font-weight: 600;
+}
+
 @media (max-width: 480px) {
   .app {
     margin: 16px;

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8" />
   <title>休憩タイマー</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <div class="app">
     <header>
@@ -28,21 +30,11 @@
       <div class="time-config">
         <div class="config-item">
           <label for="focus-minutes">集中モード（分）</label>
-          <input
-            id="focus-minutes"
-            type="number"
-            min="1"
-            value="25"
-          />
+          <input id="focus-minutes" type="number" min="1" value="25" />
         </div>
         <div class="config-item">
           <label for="break-minutes">休憩モード（分）</label>
-          <input
-            id="break-minutes"
-            type="number"
-            min="1"
-            value="5"
-          />
+          <input id="break-minutes" type="number" min="1" value="5" />
         </div>
       </div>
     </section>
@@ -60,9 +52,36 @@
       <button id="toggle-mode-btn">休憩モードに切替</button>
     </section>
 
+    <section class="stats-section">
+      <header>
+        <h2>今日の実績</h2>
+      </header>
+
+      <div class="stats-row">
+        <span>合計集中時間：</span>
+        <span id="today-focus-minutes">0 分</span>
+      </div>
+
+      <div class="stats-row">
+        <span>合計休憩時間：</span>
+        <span id="today-break-minutes">0 分</span>
+      </div>
+
+      <div class="stats-row">
+        <span>完了サイクル数：</span>
+        <span id="today-focus-cycles">0 回</span>
+      </div>
+
+      <div class="stats-buttons">
+        <button id="clear-today-logs-btn">今日のログを削除</button>
+        <button id="clear-all-logs-btn">全てのログを削除</button>
+      </div>
+    </section>
+
     <div id="message" class="message"></div>
   </div>
 
   <script src="script.js"></script>
 </body>
+
 </html>
