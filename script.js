@@ -4,9 +4,14 @@ const MODE = {
   BREAK: "break",
 };
 
+// キー定義
+const STORAGE_KEY = "pomodoroSessions"; // 好きなキー名でOK
+
 let currentMode = MODE.FOCUS;
 let remainingSeconds = 25 * 60; // 初期値（集中 25分）
 let timerId = null;
+let currentSessionStart = null;
+let currentDayKey = createDateKey(new Date());
 
 // DOM取得
 const currentTimeEl = document.getElementById("current-time");
@@ -18,6 +23,66 @@ const startPauseBtn = document.getElementById("start-pause-btn");
 const resetBtn = document.getElementById("reset-btn");
 const toggleModeBtn = document.getElementById("toggle-mode-btn");
 const messageEl = document.getElementById("message");
+const todayFocusMinutesEl = document.getElementById("today-focus-minutes");
+const todayBreakMinutesEl = document.getElementById("today-break-minutes");
+const todayFocusCyclesEl  = document.getElementById("today-focus-cycles");
+const clearTodayLogsBtn = document.getElementById("clear-today-logs-btn");
+const clearAllLogsBtn   = document.getElementById("clear-all-logs-btn");
+
+// ========== ローカルストレージ操作 ==========
+function saveSessions(data) {
+  try {
+    const json = JSON.stringify(data);
+    localStorage.setItem(STORAGE_KEY, json);
+  } catch (e) {
+    console.error("Failed to save sessions to localStorage", e);
+  }
+}
+
+function loadSessions() {
+  const json = localStorage.getItem(STORAGE_KEY);
+  if (!json) {
+    // まだ何も保存されていない場合
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(json);
+    return parsed;
+  } catch (e) {
+    console.error("Failed to parse sessions from localStorage", e);
+    return {};
+  }
+}
+
+function clearTodayLogs() {
+  if (!confirm("今日のログを削除しますか？")) {
+    return;
+  }
+
+  const sessions = loadSessions();
+  const todayKey = createDateKey(new Date());
+
+  // 今日のキーだけ削除
+  delete sessions[todayKey];
+
+  saveSessions(sessions);
+  updateTodayStats();
+  messageEl.textContent = "今日のログを削除しました。";
+}
+
+function clearAllLogs() {
+  if (!confirm("すべてのログを削除しますか？この操作は取り消せません。")) {
+    return;
+  }
+
+  // ログ用キーごと削除
+  localStorage.removeItem(STORAGE_KEY);
+
+  // 画面上は「0分 / 0回」にさせる
+  updateTodayStats();
+  messageEl.textContent = "すべてのログを削除しました。";
+}
 
 // ========== 現在時刻表示 ==========
 function updateCurrentTime() {
@@ -26,6 +91,12 @@ function updateCurrentTime() {
   const m = String(now.getMinutes()).padStart(2, "0");
   const s = String(now.getSeconds()).padStart(2, "0");
   currentTimeEl.textContent = `${h}:${m}:${s}`;
+
+  const dayKey = createDateKey(now);
+  if (dayKey !== currentDayKey) {
+    currentDayKey = dayKey;
+    updateTodayStats(); // 日付変わったら今日の実績を再計算
+  }
 }
 
 setInterval(updateCurrentTime, 1000);
@@ -49,12 +120,21 @@ function formatTime(sec) {
   return `${m}:${s}`;
 }
 
+function createDateKey(date) {
+  const year  = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // 月は0始まりなので+1
+  const day   = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function updateDisplay() {
   timeDisplayEl.textContent = formatTime(remainingSeconds);
   modeLabelEl.textContent = currentMode === MODE.FOCUS ? "集中モード" : "休憩モード";
   toggleModeBtn.textContent =
     currentMode === MODE.FOCUS ? "休憩モードに切替" : "集中モードに切替";
   applyModeTheme();
+  updateTodayStats();
 }
 
 function applyModeTheme() {
@@ -70,6 +150,12 @@ function applyModeTheme() {
 // ========== タイマー制御 ==========
 function startTimer() {
   if (timerId !== null) return; // 二重起動防止
+
+  const initialSeconds = getDurationSeconds(currentMode);
+  const isFull = remainingSeconds === initialSeconds;
+  if (currentSessionStart === null || isFull) {
+    currentSessionStart = new Date();
+  }
 
   messageEl.textContent = "";
   startPauseBtn.textContent = "停止";
@@ -96,6 +182,7 @@ function pauseTimer() {
 function resetTimer() {
   pauseTimer();
   remainingSeconds = getDurationSeconds(currentMode);
+  currentSessionStart = null;
   messageEl.textContent = "";
   updateDisplay();
 }
@@ -103,6 +190,28 @@ function resetTimer() {
 // 時間終了時の挙動
 function handleTimeUp() {
   pauseTimer();
+
+  const end = new Date();
+
+  let durationSeconds = getDurationSeconds(currentMode);
+  let start = new Date(end.getTime() - durationSeconds * 1000);
+  if(currentSessionStart !== null) {
+    start = currentSessionStart;
+    durationSeconds = Math.round((end - currentSessionStart) / 1000);
+  }
+
+  const dateKey = createDateKey(end);
+  const sessions = loadSessions();
+  sessions[dateKey] = sessions[dateKey] || [];
+  sessions[dateKey].push({ 
+    mode: currentMode, 
+    start: start.toISOString(), 
+    end: end.toISOString(), 
+    durationSeconds 
+  });
+  saveSessions(sessions);
+  updateTodayStats();
+  currentSessionStart = null;
 
   const prevMode = currentMode;
   const modeText = prevMode === MODE.FOCUS ? "集中" : "休憩";
@@ -133,6 +242,37 @@ function switchModeManually() {
     startTimer(); // 切り替え前に動いていたら再スタート
   }
 }
+
+// ========== ログ関連 ==========
+function updateTodayStats() {
+  const now = new Date();
+  const todayKey = createDateKey(now);
+  const sessions = loadSessions();
+  const todaySessions = sessions[todayKey] || [];
+
+  let totalFocusSeconds = 0;
+  let totalBreakSeconds = 0;
+  let focusCycles = 0;
+
+  todaySessions.forEach((session) => {
+    if (session.mode === MODE.FOCUS) {
+      // durationSeconds が入っている前提
+      totalFocusSeconds += session.durationSeconds || 0;
+    } else {
+      totalBreakSeconds += session.durationSeconds || 0;
+      focusCycles += 1;
+    }
+  });
+
+  const totalFocusMinutes = Math.floor(totalFocusSeconds / 60);
+  const totalBreakMinutes = Math.floor(totalBreakSeconds / 60);
+
+  // HTML に反映
+  todayFocusMinutesEl.textContent = `${totalFocusMinutes} 分`;
+  todayBreakMinutesEl.textContent = `${totalBreakMinutes} 分`;
+  todayFocusCyclesEl.textContent  = `${focusCycles} 回`;
+}
+
 
 // ========== イベント登録 ==========
 startPauseBtn.addEventListener("click", () => {
@@ -168,6 +308,9 @@ breakMinutesInput.addEventListener("change", () => {
     updateDisplay();
   }
 });
+
+clearTodayLogsBtn.addEventListener("click", clearTodayLogs);
+clearAllLogsBtn.addEventListener("click", clearAllLogs);
 
 // 初期表示
 remainingSeconds = getDurationSeconds(currentMode);
