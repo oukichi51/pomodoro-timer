@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>休憩タイマー</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>休憩タイマー</h1>
+    </header>
+
+    <!-- 現在時刻 -->
+    <section class="now-section">
+      <span>現在時刻：</span>
+      <span id="current-time">--:--:--</span>
+    </section>
+
+    <!-- モードと時間設定 -->
+    <section class="config-section">
+      <div class="mode-row">
+        <span>現在のモード：</span>
+        <span id="mode-label" class="mode-label">集中</span>
+      </div>
+
+      <div class="time-config">
+        <div class="config-item">
+          <label for="focus-minutes">集中モード（分）</label>
+          <input
+            id="focus-minutes"
+            type="number"
+            min="1"
+            value="25"
+          />
+        </div>
+        <div class="config-item">
+          <label for="break-minutes">休憩モード（分）</label>
+          <input
+            id="break-minutes"
+            type="number"
+            min="1"
+            value="5"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- タイマー表示（監視時間） -->
+    <section class="timer-section">
+      <div class="timer-label">タイマーの監視時間</div>
+      <div id="time-display" class="time-display">25:00</div>
+    </section>
+
+    <!-- ボタン -->
+    <section class="buttons-section">
+      <button id="start-pause-btn">スタート</button>
+      <button id="reset-btn">リセット</button>
+      <button id="toggle-mode-btn">休憩モードに切替</button>
+    </section>
+
+    <div id="message" class="message"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
